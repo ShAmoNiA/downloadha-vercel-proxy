@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./styles.css";
 
 export const metadata: Metadata = {
-  title: "Downloadha Fetch Proxy",
-  description: "Locked-down serverless fetch proxy for downloadha.com",
+  title: "Vercel Reverse Proxy",
+  description: "Locked-down serverless HTTP reverse proxy",
 };
 
 export default function RootLayout({

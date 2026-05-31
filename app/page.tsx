@@ -1,11 +1,15 @@
 const links = [
   {
-    href: "/api/downloadha",
-    label: "Open downloadha.com",
+    href: "/api/proxy",
+    label: "Open configured upstream",
   },
   {
-    href: "/api/downloadha?path=/category/software/",
-    label: "Open software category",
+    href: "/api/proxy?path=/category/software/",
+    label: "Open configured path",
+  },
+  {
+    href: "/api/downloadha",
+    label: "Legacy downloadha alias",
   },
 ];
 
@@ -13,10 +17,10 @@ export default function Home() {
   return (
     <main>
       <section className="panel">
-        <h1>Downloadha Fetch Proxy</h1>
+        <h1>Vercel Reverse Proxy</h1>
         <p>
-          A minimal Vercel-compatible HTTP fetch proxy locked to downloadha.com
-          and www.downloadha.com.
+          A minimal Vercel-compatible HTTP reverse proxy with Basic Auth,
+          debug errors, and an upstream hostname allowlist.
         </p>
         <nav aria-label="Proxy test links">
           {links.map((link) => (
