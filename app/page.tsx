@@ -11,6 +11,10 @@ const links = [
     href: "/api/downloadha",
     label: "Legacy downloadha alias",
   },
+  {
+    href: "/admin",
+    label: "Admin dashboard",
+  },
 ];
 
 export default function Home() {

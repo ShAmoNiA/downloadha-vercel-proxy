@@ -22,6 +22,8 @@ cp .env.example .env.local
 
 Set `PROXY_PASSWORD` to a private password. The route uses browser Basic Auth, with username `shayan` unless you set a different `PROXY_USERNAME`.
 
+Set `PROXY_TOKEN_SECRET` to a long random value if you want generated user links to remain valid after rotating the admin password.
+
 Set the default upstream used when you call `/api/proxy` without a `url` query parameter:
 
 ```bash
@@ -40,6 +42,7 @@ http://localhost:3000/api/proxy
 http://localhost:3000/api/proxy?path=/category/software/
 http://localhost:3000/api/downloadha
 http://localhost:3000/api/downloadha?path=/category/software/
+http://localhost:3000/admin
 ```
 
 ## Deploy To Vercel
@@ -49,6 +52,7 @@ http://localhost:3000/api/downloadha?path=/category/software/
 3. Optional: add environment variables in the Vercel project settings if you want to rotate the default credential:
    - `PROXY_USERNAME`
    - `PROXY_PASSWORD` or `PROXY_PASSWORD_SHA256`
+   - `PROXY_TOKEN_SECRET`
    - `PROXY_UPSTREAM_BASE_URL`
 4. Keep the default Next.js framework settings.
 5. Deploy.
@@ -67,6 +71,17 @@ https://your-project.vercel.app/api/proxy?path=/category/software/
 ```
 
 Your browser will ask for the Basic Auth username and password before the proxy runs.
+
+## Admin Dashboard
+
+Open `/admin` to generate user access links. The dashboard asks for the admin username and password, then creates signed portal links.
+
+Users are stateless signed tokens, not database records. This keeps the app Vercel-compatible without adding a database. Generated links remain valid until they expire or until you rotate `PROXY_TOKEN_SECRET`.
+
+For each user, choose:
+
+- `All pages` to let the token fetch any `http:` or `https:` URL.
+- `Specific pages` to let the token fetch only URLs that start with one of the allowed URL prefixes.
 
 The generic route supports:
 

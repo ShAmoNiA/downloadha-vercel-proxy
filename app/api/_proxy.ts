@@ -1,14 +1,16 @@
-import { createHash, timingSafeEqual } from "crypto";
+import {
+  canAccessTarget,
+  getAdminAuthFailureResponse,
+  getTokenFromRequest,
+  isAdminRequest,
+  verifyAccessToken,
+} from "./_access";
 
 type ProxyConfig = {
   defaultBaseUrl: string;
   allowedHostnames?: string[];
   authRealm?: string;
 };
-
-const fallbackUsername = "shayan";
-const fallbackPasswordHash =
-  "e91155a519a316e015fb2b29a799ffa9a50d0dc06ecf08559941172bb867ebe9";
 
 const browserHeaders = {
   "User-Agent":
@@ -19,16 +21,11 @@ const browserHeaders = {
 };
 
 export async function handleProxyGET(req: Request, config: ProxyConfig) {
-  const authResponse = getAuthFailureResponse(req, config.authRealm);
-
-  if (authResponse) {
-    return authResponse;
-  }
-
   let target: URL;
+  let requestUrl: URL;
 
   try {
-    const requestUrl = new URL(req.url);
+    requestUrl = new URL(req.url);
     target = resolveTargetUrl(requestUrl, config.defaultBaseUrl);
   } catch (error) {
     return Response.json(
@@ -50,6 +47,39 @@ export async function handleProxyGET(req: Request, config: ProxyConfig) {
       { error: "Only http and https URLs are supported" },
       {
         status: 400,
+        headers: {
+          "cache-control": "no-store",
+        },
+      },
+    );
+  }
+
+  const admin = isAdminRequest(req);
+  const tokenPayload = verifyAccessToken(getTokenFromRequest(req, requestUrl));
+
+  if (!admin && !tokenPayload) {
+    return (
+      getAdminAuthFailureResponse(req, config.authRealm) ||
+      Response.json(
+        { error: "Authentication required" },
+        {
+          status: 401,
+          headers: {
+            "cache-control": "no-store",
+          },
+        },
+      )
+    );
+  }
+
+  if (!admin && tokenPayload && !canAccessTarget(tokenPayload, target)) {
+    return Response.json(
+      {
+        error: "User is not allowed to access this target",
+        user: tokenPayload.sub,
+      },
+      {
+        status: 403,
         headers: {
           "cache-control": "no-store",
         },
@@ -123,72 +153,6 @@ function resolveTargetUrl(requestUrl: URL, defaultBaseUrl: string) {
   }
 
   return new URL(path, defaultBaseUrl);
-}
-
-function getAuthFailureResponse(req: Request, realm = "reverse proxy") {
-  const expectedUsername = process.env.PROXY_USERNAME || fallbackUsername;
-  const expectedPasswordHash =
-    process.env.PROXY_PASSWORD_SHA256 ||
-    hashPassword(process.env.PROXY_PASSWORD) ||
-    fallbackPasswordHash;
-
-  const credentials = parseBasicAuth(req.headers.get("authorization"));
-
-  if (
-    !credentials ||
-    !safeEqual(credentials.username, expectedUsername) ||
-    !safeEqual(hashPassword(credentials.password) || "", expectedPasswordHash)
-  ) {
-    return Response.json(
-      { error: "Authentication required" },
-      {
-        status: 401,
-        headers: {
-          "cache-control": "no-store",
-          "www-authenticate": `Basic realm="${realm}"`,
-        },
-      },
-    );
-  }
-
-  return null;
-}
-
-function parseBasicAuth(authorization: string | null) {
-  if (!authorization?.startsWith("Basic ")) {
-    return null;
-  }
-
-  const decoded = Buffer.from(authorization.slice("Basic ".length), "base64")
-    .toString("utf8");
-  const separatorIndex = decoded.indexOf(":");
-
-  if (separatorIndex === -1) {
-    return null;
-  }
-
-  return {
-    username: decoded.slice(0, separatorIndex),
-    password: decoded.slice(separatorIndex + 1),
-  };
-}
-
-function safeEqual(left: string, right: string) {
-  const leftBuffer = Buffer.from(left);
-  const rightBuffer = Buffer.from(right);
-
-  return (
-    leftBuffer.length === rightBuffer.length &&
-    timingSafeEqual(leftBuffer, rightBuffer)
-  );
-}
-
-function hashPassword(password: string | undefined) {
-  if (!password) {
-    return null;
-  }
-
-  return createHash("sha256").update(password).digest("hex");
 }
 
 function serializeError(error: unknown): Record<string, unknown> {
