@@ -20,7 +20,7 @@ export default function Home() {
         <h1>Vercel Reverse Proxy</h1>
         <p>
           A minimal Vercel-compatible HTTP reverse proxy with Basic Auth,
-          debug errors, and an upstream hostname allowlist.
+          debug errors, and support for any authenticated HTTP(S) target.
         </p>
         <nav aria-label="Proxy test links">
           {links.map((link) => (

@@ -1,10 +1,10 @@
 # Vercel Reverse Proxy
 
-Minimal Next.js TypeScript app using the App Router. It exposes a locked-down serverless HTTP reverse proxy that can be pointed at one or more allowed upstream hostnames.
+Minimal Next.js TypeScript app using the App Router. It exposes an authenticated serverless HTTP reverse proxy that can fetch any `http:` or `https:` target URL you provide.
 
 This is not a full browser, VPN, TCP, SOCKS, or Express proxy. It only fetches HTTP responses server-side, so CSS, images, JavaScript, forms, cookies, and internal links may not work perfectly through the proxy.
 
-By default, the configured upstream is `https://downloadha.com`, but the generic route is not hardcoded to that one site.
+By default, the configured upstream is `https://downloadha.com`, but the generic `/api/proxy` route is not hardcoded to that one site and does not use a hostname allowlist.
 
 ## Install
 
@@ -22,11 +22,10 @@ cp .env.example .env.local
 
 Set `PROXY_PASSWORD` to a private password. The route uses browser Basic Auth, with username `shayan` unless you set a different `PROXY_USERNAME`.
 
-Set the upstream and allowlist:
+Set the default upstream used when you call `/api/proxy` without a `url` query parameter:
 
 ```bash
 PROXY_UPSTREAM_BASE_URL=https://downloadha.com
-PROXY_ALLOWED_HOSTS=downloadha.com,www.downloadha.com
 ```
 
 ```bash
@@ -51,7 +50,6 @@ http://localhost:3000/api/downloadha?path=/category/software/
    - `PROXY_USERNAME`
    - `PROXY_PASSWORD` or `PROXY_PASSWORD_SHA256`
    - `PROXY_UPSTREAM_BASE_URL`
-   - `PROXY_ALLOWED_HOSTS`
 4. Keep the default Next.js framework settings.
 5. Deploy.
 
@@ -74,13 +72,8 @@ The generic route supports:
 
 - `GET /api/proxy` to fetch `PROXY_UPSTREAM_BASE_URL`
 - `GET /api/proxy?path=/some/path` to resolve a path against `PROXY_UPSTREAM_BASE_URL`
-- `GET /api/proxy?url=https://allowed.example/some/path` to fetch an absolute URL only if its hostname appears in `PROXY_ALLOWED_HOSTS`
+- `GET /api/proxy?url=https://example.com/some/path` to fetch any authenticated `http:` or `https:` target
 
-The route only allows upstream hostnames from `PROXY_ALLOWED_HOSTS`. The default allowlist is:
-
-- `downloadha.com`
-- `www.downloadha.com`
-
-Requests that try to use another hostname are rejected with `403`.
+Requests without valid Basic Auth are rejected with `401`. Non-HTTP protocols are rejected with `400`.
 
 `/api/downloadha` is kept as a legacy shortcut that always uses the `downloadha.com` allowlist.

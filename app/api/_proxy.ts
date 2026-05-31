@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from "crypto";
 
 type ProxyConfig = {
   defaultBaseUrl: string;
-  allowedHostnames: string[];
+  allowedHostnames?: string[];
   authRealm?: string;
 };
 
@@ -25,23 +25,55 @@ export async function handleProxyGET(req: Request, config: ProxyConfig) {
     return authResponse;
   }
 
-  const requestUrl = new URL(req.url);
-  const target = resolveTargetUrl(requestUrl, config.defaultBaseUrl);
-  const allowedHostnames = new Set(config.allowedHostnames);
+  let target: URL;
 
-  if (!allowedHostnames.has(target.hostname)) {
+  try {
+    const requestUrl = new URL(req.url);
+    target = resolveTargetUrl(requestUrl, config.defaultBaseUrl);
+  } catch (error) {
     return Response.json(
       {
-        error: "Target hostname is not allowed",
-        allowedHostnames: config.allowedHostnames,
+        error: "Invalid target URL",
+        details: serializeError(error),
       },
       {
-        status: 403,
+        status: 400,
         headers: {
           "cache-control": "no-store",
         },
       },
     );
+  }
+
+  if (!["http:", "https:"].includes(target.protocol)) {
+    return Response.json(
+      { error: "Only http and https URLs are supported" },
+      {
+        status: 400,
+        headers: {
+          "cache-control": "no-store",
+        },
+      },
+    );
+  }
+
+  if (config.allowedHostnames?.length) {
+    const allowedHostnames = new Set(config.allowedHostnames);
+
+    if (!allowedHostnames.has(target.hostname)) {
+      return Response.json(
+        {
+          error: "Target hostname is not allowed",
+          allowedHostnames: config.allowedHostnames,
+        },
+        {
+          status: 403,
+          headers: {
+            "cache-control": "no-store",
+          },
+        },
+      );
+    }
   }
 
   let upstream: Response;
@@ -78,10 +110,6 @@ export async function handleProxyGET(req: Request, config: ProxyConfig) {
   });
 }
 
-export function readAllowedHostnames(defaultHostnames: string[]) {
-  return splitCsv(process.env.PROXY_ALLOWED_HOSTS, defaultHostnames);
-}
-
 export function readDefaultBaseUrl(defaultBaseUrl: string) {
   return process.env.PROXY_UPSTREAM_BASE_URL || defaultBaseUrl;
 }
@@ -95,19 +123,6 @@ function resolveTargetUrl(requestUrl: URL, defaultBaseUrl: string) {
   }
 
   return new URL(path, defaultBaseUrl);
-}
-
-function splitCsv(value: string | undefined, fallback: string[]) {
-  if (!value) {
-    return fallback;
-  }
-
-  const values = value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-  return values.length > 0 ? values : fallback;
 }
 
 function getAuthFailureResponse(req: Request, realm = "reverse proxy") {
